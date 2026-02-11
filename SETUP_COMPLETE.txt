@@ -1,0 +1,112 @@
+==================================================
+🎨 MATH WAR - APP ICON SETUP COMPLETE 🎨
+==================================================
+
+✅ ĐÃ SETUP XONG:
+
+📦 Package Installed:
+   • flutter_launcher_icons ^0.14.4
+
+📝 Scripts Đã Tạo:
+   • scripts/setup_icon.sh             (Script chính - chạy file này!)
+   • scripts/check_icons.sh            (Kiểm tra status)
+   • scripts/preview_icon_structure.sh (Xem cấu trúc)
+
+📚 Documentation Đã Tạo:
+   • HOW_TO_CHANGE_ICON.md     (BẮT ĐẦU TỪ ĐÂY!)
+   • ICON_GUIDE.md             (Hướng dẫn chi tiết)
+   • ICON_SETUP_SUMMARY.md     (Tóm tắt)
+   • assets/README.md          (Hướng dẫn trong folder)
+   • assets/ICON_SETUP.md      (Chi tiết setup)
+
+📁 Folder:
+   • assets/                   (Đặt app_icon.png vào đây!)
+
+==================================================
+
+🚀 CÁCH SỬ DỤNG (3 BƯỚC ĐƠN GIẢN):
+
+1️⃣  LƯU ICON:
+    Lưu file icon của bạn vào: assets/app_icon.png
+    
+    Yêu cầu:
+    • Kích thước: Tối thiểu 1024x1024 px
+    • Format: PNG
+    • Tên file: app_icon.png (chính xác tên này!)
+
+2️⃣  CHẠY SCRIPT:
+    ./scripts/setup_icon.sh
+    
+    Hoặc manual:
+    flutter pub get
+    dart run flutter_launcher_icons
+    flutter clean
+
+3️⃣  TEST:
+    flutter run
+
+==================================================
+
+📊 KẾT QUẢ:
+
+Sau khi chạy script, bạn sẽ có ~35 icon files:
+
+✅ Android (15+ files):
+   • android/app/src/main/res/mipmap-mdpi/
+   • android/app/src/main/res/mipmap-hdpi/
+   • android/app/src/main/res/mipmap-xhdpi/
+   • android/app/src/main/res/mipmap-xxhdpi/
+   • android/app/src/main/res/mipmap-xxxhdpi/
+   (Mỗi folder chứa: ic_launcher.png + adaptive icons)
+
+✅ iOS (15 files):
+   • ios/Runner/Assets.xcassets/AppIcon.appiconset/
+   (Tất cả sizes từ 20x20 đến 1024x1024)
+
+✅ Web (5 files):
+   • web/icons/ (PWA icons 192px, 512px)
+   • web/favicon.png (Browser tab icon)
+
+==================================================
+
+💡 QUICK COMMANDS:
+
+Check status:
+   ./scripts/check_icons.sh
+
+Preview structure:
+   ./scripts/preview_icon_structure.sh
+
+Read guide:
+   cat HOW_TO_CHANGE_ICON.md
+
+Generate icons:
+   ./scripts/setup_icon.sh
+
+==================================================
+
+🐛 TROUBLESHOOTING:
+
+Icon không thay đổi sau khi build?
+
+Android:
+   adb uninstall com.example.math_war
+   flutter run
+
+iOS:
+   cd ios && rm -rf Pods Podfile.lock && cd ..
+   flutter clean && flutter run
+
+Web:
+   Clear browser cache (Ctrl+Shift+Del)
+   Hard refresh (Ctrl+Shift+R)
+
+==================================================
+
+✨ Icon bạn gửi rất đẹp!
+   Hãy lưu nó với tên app_icon.png vào folder assets/
+   Sau đó chạy: ./scripts/setup_icon.sh
+
+📖 Chi tiết đầy đủ: cat HOW_TO_CHANGE_ICON.md
+
+==================================================
