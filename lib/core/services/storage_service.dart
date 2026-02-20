@@ -7,6 +7,8 @@ class StorageService {
   static const String _keyBestScore = 'best_score';
   static const String _keyTotalScore = 'total_score';
   static const String _keyGameConfig = 'game_config';
+  static const String _keyThemePreference = 'theme_preference';
+  static const String _keyLanguagePreference = 'language_preference';
 
   final SharedPreferences _prefs;
 
@@ -61,5 +63,25 @@ class StorageService {
   /// Clear all data
   Future<void> clearAll() async {
     await _prefs.clear();
+  }
+
+  /// Save theme preference: system | light | dark
+  Future<void> saveThemePreference(String value) async {
+    await _prefs.setString(_keyThemePreference, value);
+  }
+
+  /// Get theme preference
+  String getThemePreference() {
+    return _prefs.getString(_keyThemePreference) ?? 'system';
+  }
+
+  /// Save language preference: system | en | vi
+  Future<void> saveLanguagePreference(String value) async {
+    await _prefs.setString(_keyLanguagePreference, value);
+  }
+
+  /// Get language preference
+  String getLanguagePreference() {
+    return _prefs.getString(_keyLanguagePreference) ?? 'system';
   }
 }

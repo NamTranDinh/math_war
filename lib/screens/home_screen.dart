@@ -1,200 +1,182 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:math_war/common/app_route.dart';
 import 'package:math_war/core/cubit/game_cubit.dart';
 import 'package:math_war/core/cubit/game_state.dart';
-import 'package:math_war/widgets/glass_card.dart';
-import 'package:math_war/common/common_button.dart';
-import 'settings_screen.dart';
-import 'game_screen.dart';
+import 'package:math_war/core/cubit/theme_cubit.dart';
+import 'package:math_war/l10n/app_localizations.dart';
+import 'package:math_war/screens/game_screen.dart';
+import 'package:math_war/screens/settings_screen.dart';
+import 'package:math_war/theme/neumorphic_theme_extension.dart';
+import 'package:math_war/widgets/neumorphic/neumorphic_widgets.dart';
 
-/// Home screen with logo, scores, and start button
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _bounceController;
-  late Animation<double> _bounceAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Continuous bounce animation for crown
-    _bounceController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _bounceAnimation = Tween<double>(begin: 0, end: -20).animate(
-      CurvedAnimation(
-        parent: _bounceController,
-        curve: Curves.easeInOut,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _bounceController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Indigo-blue gradient background
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF4f46e5), // indigo-600
-                  Color(0xFF3b82f6), // blue-500
-                ],
-              ),
-            ),
-          ),
+    final l10n = context.l10n;
 
-          // Floating decorative elements
-          Positioned(
-            top: 100,
-            left: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 150,
-            right: -80,
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.08),
-              ),
-            ),
-          ),
+    return NeuScaffold(
+      child: BlocBuilder<GameCubit, GameState>(
+        builder: (context, state) {
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final maxWidth =
+                  constraints.maxWidth > 560 ? 560.0 : constraints.maxWidth;
 
-          // Main content with liquid glass
-          SafeArea(
-            child: BlocBuilder<GameCubit, GameState>(
-              builder: (context, state) {
-                return Column(
-                  children: [
-                    // Header with scores and settings
-                    _buildHeader(context, state),
-
-                    const Spacer(),
-
-                    // Logo and title
-                    _buildLogo(),
-
-                    const SizedBox(height: 20),
-
-                    _buildTitle(),
-
-                    const SizedBox(height: 10),
-
-                    _buildSubtitle(),
-
-                    const Spacer(),
-
-                    // Start button
-                    _buildStartButton(context),
-
-                    const SizedBox(height: 40),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, GameState state) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Best score without border
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'BEST',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${state.bestScore}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-
-          // Total score without border
-          Column(
-            children: [
-              Text(
-                'TOTAL SCORE',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${state.totalScore}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-
-          // Settings button without border
-          CommonScaleButton(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (context) => const SettingsScreen(),
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+                      _header(context, l10n),
+                      const SizedBox(height: 14),
+                      _titleCard(context, constraints, l10n),
+                      const SizedBox(height: 14),
+                      _scoreRow(context, state, l10n),
+                      const Spacer(),
+                      _startButton(context, l10n),
+                      const SizedBox(height: 12),
+                      _quickNav(context, l10n),
+                      const SizedBox(height: 18),
+                    ],
+                  ),
                 ),
               );
             },
-            child: const Icon(
-              Icons.settings,
-              color: Colors.white,
-              size: 28,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _header(BuildContext context, AppLocalizations l10n) {
+    final themeCubit = context.read<ThemeCubit>();
+
+    return Row(
+      children: [
+        Text(l10n.mathPlayground,
+            style: Theme.of(context).textTheme.titleLarge),
+        const Spacer(),
+        NeuIconButton(
+          icon: Icons.brightness_6_rounded,
+          onTap: () {
+            final next = switch (themeCubit.state) {
+              ThemePreference.system => ThemePreference.light,
+              ThemePreference.light => ThemePreference.dark,
+              ThemePreference.dark => ThemePreference.system,
+            };
+            themeCubit.setPreference(next);
+          },
+        ),
+        const SizedBox(width: 10),
+        NeuIconButton(
+          icon: Icons.settings_rounded,
+          onTap: () =>
+              Navigator.push(context, playfulRoute(const SettingsScreen())),
+        ),
+      ],
+    );
+  }
+
+  Widget _titleCard(
+      BuildContext context, BoxConstraints constraints, AppLocalizations l10n) {
+    final neu = context.neu;
+
+    return NeuSurface(
+      radius: 30,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              SvgPicture.asset('assets/illustrations/mascot_buddy.svg',
+                  width: 72, height: 72),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l10n.appTitle,
+                        style: Theme.of(context).textTheme.headlineMedium),
+                    Text(l10n.tagline,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: SvgPicture.asset(
+              'assets/illustrations/illus_home_fun.svg',
+              height: constraints.maxHeight > 760 ? 170 : 144,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.stars_rounded, color: neu.accent),
+              const SizedBox(width: 6),
+              Text(l10n.unlockStars,
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scoreRow(
+      BuildContext context, GameState state, AppLocalizations l10n) {
+    return Row(
+      children: [
+        Expanded(
+            child: _scoreCard(context, l10n.best, state.bestScore,
+                Icons.emoji_events_rounded)),
+        const SizedBox(width: 10),
+        Expanded(
+            child: _scoreCard(context, l10n.total, state.totalScore,
+                Icons.auto_awesome_rounded)),
+      ],
+    );
+  }
+
+  Widget _scoreCard(
+      BuildContext context, String label, int score, IconData icon) {
+    return NeuSurface(
+      radius: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: context.neu.accent.withOpacity(0.28),
+            ),
+            child: Icon(icon, size: 20, color: context.neu.accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w700)),
+                Text('$score',
+                    style: const TextStyle(
+                        fontSize: 26, fontWeight: FontWeight.w800)),
+              ],
             ),
           ),
         ],
@@ -202,96 +184,73 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildLogo() {
-    return AnimatedBuilder(
-      animation: _bounceAnimation,
-      builder: (context, child) {
-        return Transform.translate(
-          offset: Offset(0, _bounceAnimation.value),
-          child: GlowingGlassCard(
-            borderRadius: 40,
-            blur: 12,
-            opacity: 0.25,
-            glowColor: const Color(0xFFfbbf24),
-            // yellow glow
-            glowStrength: 0.4,
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.emoji_events, // crown/trophy icon
-                  size: 70,
-                  color: Color(0xFFfbbf24), // yellow-400
-                ),
-              ),
+  Widget _startButton(BuildContext context, AppLocalizations l10n) {
+    final neu = context.neu;
+
+    return SizedBox(
+      width: double.infinity,
+      child: NeuButton(
+        onTap: () => Navigator.push(context, playfulRoute(const GameScreen())),
+        radius: 30,
+        color: const Color(0xFF97E8AE),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.play_circle_fill_rounded,
+                color: neu.textPrimary, size: 28),
+            const SizedBox(width: 10),
+            Text(
+              l10n.startGame,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(color: neu.textPrimary),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTitle() {
-    return const Text(
-      'MATH WAR',
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 42,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 2,
-        fontStyle: FontStyle.italic,
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSubtitle() {
-    return Text(
-      'Test your reflexes. Conquer the numbers.',
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: Colors.white.withOpacity(0.8),
-        fontSize: 16,
-        letterSpacing: 0.5,
-      ),
-    );
-  }
-
-  Widget _buildStartButton(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: SizedBox(
-        width: double.infinity,
-        height: 60,
-        child: CommonScaleButton(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const GameScreen(),
-              ),
-            );
-          },
-          child: Material(
-            color: const Color(0xFF002C71).withOpacity(0.3),
-            borderRadius: BorderRadius.circular(30),
-            child: const Center(
-              child: Text(
-                'START BATTLE',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                  color: Colors.white,
-                ),
-              ),
+  Widget _quickNav(BuildContext context, AppLocalizations l10n) {
+    return Row(
+      children: [
+        Expanded(
+          child: NeuButton(
+            onTap: () {},
+            radius: 22,
+            color: const Color(0xFFFFD89E),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.home_rounded),
+                const SizedBox(width: 6),
+                Text(l10n.home),
+              ],
             ),
           ),
         ),
-      ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: NeuButton(
+            onTap: () =>
+                Navigator.push(context, playfulRoute(const SettingsScreen())),
+            radius: 22,
+            color: const Color(0xFFAEDBFF),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.tune_rounded),
+                const SizedBox(width: 6),
+                Text(l10n.settings),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

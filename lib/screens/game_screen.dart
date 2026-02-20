@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:math_war/common/app_route.dart';
+import 'package:math_war/core/cubit/game_cubit.dart';
 import 'package:math_war/core/cubit/game_state.dart';
-import 'package:math_war/widgets/glass_card.dart';
+import 'package:math_war/l10n/app_localizations.dart';
+import 'package:math_war/screens/countdown_overlay.dart';
+import 'package:math_war/screens/game_over_screen.dart';
+import 'package:math_war/theme/neumorphic_theme_extension.dart';
+import 'package:math_war/widgets/celebration_overlay.dart';
+import 'package:math_war/widgets/neumorphic/neumorphic_widgets.dart';
 import 'package:vibration/vibration.dart';
-import '../core/cubit/game_cubit.dart';
-import 'game_over_screen.dart';
-import 'countdown_overlay.dart';
 
-/// Main game screen with math equation and answer buttons
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
 
@@ -15,313 +19,124 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _shakeController;
-  late Animation<double> _shakeAnimation;
-  late Animation<double> _fadeAnimation;
-  bool _countdownComplete = false;
+class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+  late final AnimationController _scorePulseController;
+  late final Animation<double> _scorePulse;
+  int _celebrationTick = 0;
+  int _lastScore = 0;
 
   @override
   void initState() {
     super.initState();
+    _shakeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 460));
+    _shakeAnimation = CurvedAnimation(parent: _shakeController, curve: Curves.easeOutBack);
 
-    // Shake animation for wrong answers
-    _shakeController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
+    _scorePulseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
+    _scorePulse = Tween<double>(begin: 1.0, end: 1.14).animate(
+      CurvedAnimation(parent: _scorePulseController, curve: Curves.easeOutBack),
     );
 
-    _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _shakeController,
-        curve: Curves.elasticOut,
-      ),
-    );
-
-    _fadeAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _shakeController,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    // Show countdown before starting game
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<GameCubit>().prepareGame();
-        _showCountdown();
+      if (!mounted) {
+        return;
       }
+      context.read<GameCubit>().prepareGame();
+      _showCountdown();
     });
   }
 
   void _showCountdown() {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.transparent,
       useSafeArea: false,
-      builder: (dialogContext) => CountdownOverlay(
-        onComplete: () {
-          if (mounted) {
+      builder: (dialogContext) {
+        return CountdownOverlay(
+          onComplete: () {
             Navigator.of(dialogContext).pop();
-            setState(() => _countdownComplete = true);
             context.read<GameCubit>().startTimer();
-          }
-        },
-      ),
+          },
+        );
+      },
     );
   }
 
   @override
   void dispose() {
     _shakeController.dispose();
+    _scorePulseController.dispose();
     super.dispose();
-  }
-
-  List<Color> _getGradientColors(int score) {
-    // Change colors by 100-point stages: 0-99, 100-199, 200-299, 300+
-    const gradients = <List<Color>>[
-      [Color(0xFF4f46e5), Color(0xFF3b82f6)], // indigo → blue
-      [Color(0xFFf97316), Color(0xFFeab308)], // orange → yellow
-      [Color(0xFFe11d48), Color(0xFFec4899)], // rose → pink
-      [Color(0xFF7e22ce), Color(0xFFc026d3), Color(0xFF4f46e5)], // purple → fuchsia → indigo
-    ];
-
-    final stage = (score ~/ 100).clamp(0, gradients.length - 1);
-    return gradients[stage];
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<GameCubit, GameState>(
+    final l10n = context.l10n;
+
+    return BlocConsumer<GameCubit, GameState>(
       listener: (context, state) {
+        if (state.currentScore > _lastScore) {
+          setState(() {
+            _celebrationTick++;
+            _lastScore = state.currentScore;
+          });
+          _scorePulseController
+            ..reset()
+            ..forward();
+        }
+
         if (state.status == GameStatus.wrongAnswer) {
-          // Trigger shake animation
           _shakeController.forward(from: 0);
-        } else if (state.status == GameStatus.gameOver) {
-          // Navigate to game over screen
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const GameOverScreen(),
-            ),
-          );
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(SnackBar(content: Text(l10n.wrongTryAgain)));
+        }
+
+        if (state.status == GameStatus.gameOver) {
+          Navigator.pushReplacement(context, playfulRoute(const GameOverScreen()));
         }
       },
-      child: BlocBuilder<GameCubit, GameState>(
-        builder: (context, state) {
-          return Scaffold(
-            body: AnimatedContainer(
-              duration: const Duration(milliseconds: 800),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: _getGradientColors(state.currentScore),
-                ),
-              ),
-              child: SafeArea(
-                child: AnimatedBuilder(
+      builder: (context, state) => NeuScaffold(
+        child: BlocBuilder<GameCubit, GameState>(
+          builder: (context, state) {
+            return Stack(
+              children: [
+                AnimatedBuilder(
                   animation: _shakeAnimation,
                   builder: (context, child) {
                     final progress = _shakeAnimation.value;
-                    final shake = progress * (1 - progress) * 15;
-                    final offset = shake * (progress < 0.5 ? 1 : -1);
-                    
-                    return Transform.translate(
-                      offset: Offset(offset, 0),
-                      child: Opacity(
-                        opacity: _fadeAnimation.value,
-                        child: child,
-                      ),
-                    );
+                    final shift = (progress < 0.5 ? 1 : -1) * progress * (1 - progress) * 30;
+                    return Transform.translate(offset: Offset(shift, 0), child: child);
                   },
-                  child: Column(
-                    children: [
-                      // Header
-                      _buildHeader(state),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxWidth = constraints.maxWidth > 560 ? 560.0 : constraints.maxWidth;
 
-                      // Timer
-                      _buildTimer(state),
-
-                      const SizedBox(height: 40),
-
-                      // Question
-                      Expanded(
-                        child: _buildQuestion(state),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      // Answer buttons
-                      _buildAnswerButtons(context, state),
-
-                      const SizedBox(height: 40),
-                    ],
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              _header(state, l10n),
+                              const SizedBox(height: 14),
+                              NeuProgressBar(value: state.remainingTime / state.totalTime),
+                              const SizedBox(height: 16),
+                              Expanded(child: _questionCard(state, l10n)),
+                              const SizedBox(height: 14),
+                              _answerButtons(context, l10n),
+                              const SizedBox(height: 18),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHeader(GameState state) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          GlassCard(
-            borderRadius: 16,
-            blur: 6,
-            opacity: 0.18,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'BEST',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${state.bestScore}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                CelebrationOverlay(trigger: _celebrationTick),
               ],
-            ),
-          ),
-          GlassCard(
-            borderRadius: 16,
-            blur: 6,
-            opacity: 0.18,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'TOTAL SCORE',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${state.totalScore}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GlassIconButton(
-            icon: Icons.settings,
-            onTap: () {},
-            size: 50,
-            blur: 6,
-            opacity: 0.18,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimer(GameState state) {
-    final progress = state.remainingTime / state.totalTime;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 50),
-              tween: Tween<double>(begin: progress, end: progress),
-              builder: (context, value, child) {
-                return LinearProgressIndicator(
-                  value: value,
-                  minHeight: 8,
-                  backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    value > 0.5
-                        ? Colors.white
-                        : value > 0.25
-                            ? Colors.yellow
-                            : Colors.red,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuestion(GameState state) {
-    if (state.currentEquation == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      );
-    }
-
-    final equation = state.currentEquation!;
-
-    return Center(
-      child: GlowingGlassCard(
-        borderRadius: 30,
-        blur: 12,
-        opacity: 1.0,
-        glowColor: const Color(0xFFFFFFFF),
-        glowStrength: 0.25,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 32,
-          vertical: 40,
-        ),
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 300),
-          tween: Tween<double>(begin: 0.8, end: 1.0),
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: value,
-              child: Text(
-                '${equation.questionText} = ${equation.displayedResult}',
-                style: const TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 42,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
-                  shadows: [
-                    Shadow(
-                      color: Color(0x22000000),
-                      blurRadius: 4,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
             );
           },
         ),
@@ -329,28 +144,47 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildAnswerButtons(BuildContext context, GameState state) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildAnswerButton(
-              context,
-              label: 'FALSE',
-              isTrue: false,
-              color: const Color(0xFFFF4D4D),
-              icon: Icons.close,
-            ),
+  Widget _header(GameState state, AppLocalizations l10n) {
+    return Row(
+      children: [
+        Expanded(child: _miniScore(l10n.best, state.bestScore, Icons.workspace_premium_rounded)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ScaleTransition(
+            scale: _scorePulse,
+            child: _miniScore(l10n.score, state.currentScore, Icons.bolt_rounded),
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: _buildAnswerButton(
-              context,
-              label: 'TRUE',
-              isTrue: true,
-              color: const Color(0xFF22C55E),
-              icon: Icons.check,
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: _miniScore(l10n.total, state.totalScore, Icons.star_rounded)),
+      ],
+    );
+  }
+
+  Widget _miniScore(String title, int value, IconData icon) {
+    return NeuSurface(
+      radius: 22,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 15, color: context.neu.accent),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
+            child: Text(
+              '$value',
+              key: ValueKey<int>(value),
+              style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w800),
             ),
           ),
         ],
@@ -358,53 +192,87 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildAnswerButton(
-    BuildContext context, {
-    required String label,
-    required bool isTrue,
-    required Color color,
-    required IconData icon,
-  }) {
-    return SizedBox(
-      height: 100,
-      child: GlassButton(
-        onTap: () async {
-          // Haptic feedback
-          if (await Vibration.hasVibrator() ?? false) {
-            await Vibration.vibrate(duration: 50);
-          }
+  Widget _questionCard(GameState state, AppLocalizations l10n) {
+    if (state.currentEquation == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          // Answer the question
-          if (context.mounted) {
-            context.read<GameCubit>().answerQuestion(isTrue);
-          }
-        },
-        borderRadius: 20,
-        blur: 10,
-        opacity: 0.35,
-        glowColor: color,
-        baseColor: color,
+    final question = '${state.currentEquation!.questionText} = ${state.currentEquation!.displayedResult}';
+
+    return Center(
+      child: NeuSurface(
+        radius: 36,
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 26),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 40,
-              color: Colors.white,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SvgPicture.asset('assets/illustrations/mascot_buddy.svg', width: 42, height: 42),
+                const SizedBox(width: 8),
+                Text(l10n.youCanDoIt, style: Theme.of(context).textTheme.titleMedium),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Text(
-              label,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.2,
-                color: Colors.white,
-              ),
+              question,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 42),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _answerButtons(BuildContext context, AppLocalizations l10n) {
+    return Row(
+      children: [
+        Expanded(
+          child: NeuButton(
+            onTap: () => _answer(context, false),
+            color: const Color(0xFFFFB8C5),
+            radius: 28,
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.close_rounded, size: 28),
+                const SizedBox(width: 8),
+                Text(l10n.falseLabel),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: NeuButton(
+            onTap: () => _answer(context, true),
+            color: const Color(0xFFABE8BC),
+            radius: 28,
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.check_rounded, size: 28),
+                const SizedBox(width: 8),
+                Text(l10n.trueLabel),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _answer(BuildContext context, bool value) async {
+    if (await Vibration.hasVibrator() ?? false) {
+      await Vibration.vibrate(duration: 45);
+    }
+
+    if (context.mounted) {
+      context.read<GameCubit>().answerQuestion(value);
+    }
   }
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:math_war/l10n/app_localizations.dart';
+import 'package:math_war/theme/neumorphic_theme_extension.dart';
+import 'package:math_war/widgets/neumorphic/neumorphic_widgets.dart';
 
-/// Countdown overlay before game starts (3, 2, 1, GO!)
 class CountdownOverlay extends StatefulWidget {
-  final VoidCallback onComplete;
+  const CountdownOverlay({required this.onComplete, super.key});
 
-  const CountdownOverlay({
-    required this.onComplete,
-    super.key,
-  });
+  final VoidCallback onComplete;
 
   @override
   State<CountdownOverlay> createState() => _CountdownOverlayState();
@@ -15,47 +15,40 @@ class CountdownOverlay extends StatefulWidget {
 
 class _CountdownOverlayState extends State<CountdownOverlay>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
   int _currentCount = 3;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
-
+        vsync: this, duration: const Duration(milliseconds: 650));
+    _scaleAnimation =
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
     _startCountdown();
   }
 
-  void _startCountdown() async {
-    // Show 3 with extra delay
-    setState(() => _currentCount = 3);
-    _controller.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 1900));
-
-    // Show 2 and 1
-    for (int i = 2; i >= 1; i--) {
+  Future<void> _startCountdown() async {
+    for (int i = 3; i >= 0; i--) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _currentCount = i);
       _controller.forward(from: 0);
-      await Future.delayed(const Duration(milliseconds: 900));
+      await Future.delayed(Duration(milliseconds: i == 3 ? 900 : 700));
     }
 
-    setState(() => _currentCount = 0);
-    _controller.forward(from: 0);
-    await Future.delayed(const Duration(milliseconds: 500));
-
+    if (!mounted) {
+      return;
+    }
     setState(() => _currentCount = -1);
     _controller.forward(from: 0);
     await Future.delayed(const Duration(milliseconds: 500));
 
-    widget.onComplete();
+    if (mounted) {
+      widget.onComplete();
+    }
   }
 
   @override
@@ -66,37 +59,41 @@ class _CountdownOverlayState extends State<CountdownOverlay>
 
   @override
   Widget build(BuildContext context) {
-    String text;
-    double fontSize;
-    
-    if (_currentCount > 0) {
-      text = '$_currentCount';
-      fontSize = 120;
-    } else if (_currentCount == 0) {
-      text = 'READY';
-      fontSize = 70;
-    } else {
-      text = 'GO!';
-      fontSize = 80;
-    }
-    
+    final l10n = context.l10n;
+    final text = _currentCount > 0
+        ? '$_currentCount'
+        : (_currentCount == 0 ? l10n.ready : l10n.start);
+    final fontSize = _currentCount > 0 ? 76.0 : 38.0;
+
     return Material(
-      color: Colors.black.withOpacity(0.7),
+      color: Colors.black.withOpacity(0.25),
       child: Center(
         child: ScaleTransition(
           scale: _scaleAnimation,
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: 2,
-              shadows: const [
-                Shadow(
-                  color: Colors.black,
-                  blurRadius: 20,
-                  offset: Offset(0, 2),
+          child: NeuSurface(
+            radius: 36,
+            color: context.neu.surface,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SvgPicture.asset('assets/illustrations/mascot_buddy.svg',
+                    width: 56, height: 56),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, color: context.neu.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      text,
+                      style:
+                          Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                color: context.neu.accent,
+                                fontSize: fontSize,
+                              ),
+                    ),
+                  ],
                 ),
               ],
             ),

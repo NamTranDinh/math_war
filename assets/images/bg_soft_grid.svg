@@ -1,0 +1,7 @@
+<svg width="800" height="1200" viewBox="0 0 800 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="1200" fill="#E8EEF6"/>
+  <g opacity="0.25" stroke="#C9D7EE" stroke-width="1">
+    <path d="M0 100H800M0 200H800M0 300H800M0 400H800M0 500H800M0 600H800M0 700H800M0 800H800M0 900H800M0 1000H800M0 1100H800"/>
+    <path d="M100 0V1200M200 0V1200M300 0V1200M400 0V1200M500 0V1200M600 0V1200M700 0V1200"/>
+  </g>
+</svg>
